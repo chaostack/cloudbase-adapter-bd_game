@@ -1,6 +1,6 @@
 {
   "name": "@cloudbase/adapter-bd_game",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "baidu minigame adapter of cloudbase javascript SDK",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
