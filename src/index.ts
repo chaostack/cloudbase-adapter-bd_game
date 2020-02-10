@@ -7,7 +7,9 @@ import {
   WebSocketContructor,
   SDKAdapterInterface,
   StorageType,
-  formatUrl
+  formatUrl,
+  IRequestConfig,
+  IRequestMethod
 } from '@cloudbase/adapter-interface';
 declare const swan;
 
@@ -55,30 +57,47 @@ function isMatch(): boolean {
 }
 
 class BdRequest extends AbstractSDKRequest {
-  constructor(){
+  // 默认不限超时
+  private readonly _timeout: number;
+  // 超时提示文案
+  private readonly _timeoutMsg: string;
+  // 超时受限请求类型，默认所有请求均受限
+  private readonly _restrictedMethods: IRequestMethod[];
+  constructor(config: IRequestConfig={}) {
     super();
+    const { timeout, timeoutMsg, restrictedMethods } = config;
+    this._timeout = timeout || 0;
+    this._timeoutMsg = timeoutMsg || '请求超时';
+    this._restrictedMethods = restrictedMethods || ['get', 'post', 'upload', 'download'];
   }
-  post(options: IRequestOptions) {
-    const { url, data, headers } = options;
+  public post(options: IRequestOptions) {
+    const self = this;
     return new Promise((resolve, reject) => {
-      swan.request({
+      let timer = null;
+      const { url, data, headers } = options;
+      const task = swan.request({
         url: formatUrl('https:', url),
         data,
         method: 'POST',
         header: headers,
         success(res) {
+          self._clearTimeout(timer);
           resolve(res);
         },
         fail(err) {
+          self._clearTimeout(timer);
           reject(err);
         }
       });
+      timer = self._setTimeout('post',task);
     });
   }
-  upload(options: IUploadRequestOptions) {
+  public upload(options: IUploadRequestOptions) {
+    const self = this;
     return new Promise(resolve => {
+      let timer = null;
       const { url, file, data, headers } = options;
-      swan.uploadFile({
+      const task  = swan.uploadFile({
         url: formatUrl('https:', url),
         filePath: file,
         // 固定字段
@@ -86,6 +105,7 @@ class BdRequest extends AbstractSDKRequest {
         header: headers,
         formData: { ...data, file },
         success(res) {
+          self._clearTimeout(timer);
           const result = {
             statusCode: res.statusCode,
             data: res.data || {}
@@ -97,18 +117,23 @@ class BdRequest extends AbstractSDKRequest {
           resolve(result);
         },
         fail(err) {
+          self._clearTimeout(timer);
           resolve(err);
         }
       });
+      timer = self._setTimeout('upload',task);
     });
   }
-  download(options: IRequestOptions) {
-    const { url, headers } = options;
+  public download(options: IRequestOptions) {
+    const self = this;
     return new Promise((resolve, reject) => {
-      swan.downloadFile({
+      let timer = null;
+      const { url, headers } = options;
+      const task = swan.downloadFile({
         url: formatUrl('https:', url),
         header: headers,
         success(res) {
+          self._clearTimeout(timer);
           if (res.statusCode === 200 && res.tempFilePath) {
             // 由于涉及权限问题，只返回临时链接不保存到设备
             resolve({
@@ -120,10 +145,28 @@ class BdRequest extends AbstractSDKRequest {
           }
         },
         fail(err) {
+          self._clearTimeout(timer);
           reject(err);
         }
       });
+      timer = self._setTimeout('download',task);
     });
+  }
+  private _clearTimeout(timer:number|null){
+    if(timer){
+      clearTimeout(timer);
+      timer = null;
+    }
+  }
+  private _setTimeout(method:IRequestMethod,task):number|null{
+    if(!this._timeout || this._restrictedMethods.indexOf(method) === -1){
+      return null;
+    }
+    const timer = setTimeout(() => {
+      console.warn(this._timeoutMsg);
+      task.abort();
+    }, this._timeout);
+    return timer;
   }
 }
 const bdMpStorage: StorageInterface = {
@@ -194,7 +237,16 @@ function genAdapter() {
     reqClass: BdRequest,
     wsClass: BdMpWebSocket as WebSocketContructor,
     localStorage: bdMpStorage,
-    primaryStorage: StorageType.local
+    primaryStorage: StorageType.local,
+    getAppSign(){
+      let sign = '';
+      try{
+        // 2.0.8版本开始支持
+        const info = swan.getEnvInfoSync();
+        sign = info.appKey||'';
+      }catch(e){}
+      return sign;
+    }
   };
   return adapter;
 }
