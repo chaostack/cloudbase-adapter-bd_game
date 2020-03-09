@@ -2,6 +2,9 @@ module.exports = {
     extends: [
         'eslint-config-alloy/typescript',
     ],
+    parserOptions: {
+        sourceType: "module"
+    },
     globals: {
         // 这里填入你的项目需要的全局变量
         // 这里值为 false 表示这个全局变量不允许被重新赋值，比如：
@@ -23,6 +26,9 @@ module.exports = {
         ],
         "guard-for-in": 0,
         "no-param-reassign": 0,
-        "no-undefined": 0
+        "no-undefined": 0,
+        "@typescript-eslint/no-this-alias": 0,
+        "@typescript-eslint/prefer-optional-chain": 0,
+        "@typescript-eslint/explicit-member-accessibility": 0
     }
 };

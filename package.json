@@ -1,12 +1,13 @@
 {
-  "name": "@cloudbase/adapter-bd_game",
-  "version": "0.2.0",
+  "name": "cloudbase-adapter-bd_game",
+  "version": "0.1.0",
   "description": "baidu minigame adapter of cloudbase javascript SDK",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
   "scripts": {
     "eslint": "eslint \"./src/*.ts\"",
-    "build": "webpack && tsc -p tsconfig.esm.json"
+    "build": "webpack && tsc -p tsconfig.esm.json",
+    "prepublish": "npm run eslint&&npm run build"
   },
   "author": "",
   "license": "ISC",
